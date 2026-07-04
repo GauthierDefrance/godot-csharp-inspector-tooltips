@@ -1,0 +1,27 @@
+; Engine configuration file.
+; It is best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section]
+;   param=value
+
+config_version=5
+
+[application]
+
+config/name="C# Inspector Tooltips Demo"
+run/main_scene="res://Demo.tscn"
+
+[dotnet]
+
+project/assembly_name="CSharpInspectorTooltipsDemo"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/csharp_inspector_tooltips/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

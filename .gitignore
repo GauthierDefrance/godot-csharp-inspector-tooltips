@@ -1,0 +1,6 @@
+/.godot/
+/.idea/
+/.vscode/
+*.user
+*.userprefs
+mono_crash.*.json
