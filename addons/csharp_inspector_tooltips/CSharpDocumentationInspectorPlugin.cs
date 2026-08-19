@@ -43,8 +43,7 @@ public partial class CSharpDocumentationInspectorPlugin : EditorInspectorPlugin
 
     public override bool _CanHandle(GodotObject @object)
     {
-        return TryGetCSharpClassName(@object, out string className) &&
-               _documentation.ContainsKey(className);
+        return TryGetCSharpClassName(@object, out _);
     }
 
     public override bool _ParseProperty(
@@ -56,8 +55,7 @@ public partial class CSharpDocumentationInspectorPlugin : EditorInspectorPlugin
         PropertyUsageFlags usageFlags,
         bool wide)
     {
-        if (TryGetCSharpClassName(@object, out string className) &&
-            TryGetDescription(className, name, out string description))
+        if (TryGetDescription(@object, name, out string description))
         {
             _currentTooltips[NormalizeName(name)] = description;
         }
@@ -122,19 +120,65 @@ public partial class CSharpDocumentationInspectorPlugin : EditorInspectorPlugin
         }
     }
 
-    private bool TryGetDescription(string className, string propertyName, out string description)
+    private bool TryGetDescription(GodotObject @object, string propertyName, out string description)
     {
         description = string.Empty;
 
-        if (!_documentation.TryGetValue(className, out Dictionary<string, string>? properties) ||
-            !properties.TryGetValue(NormalizeName(propertyName), out string? foundDescription) ||
-            foundDescription == null)
+        if (!TryGetScriptType(@object, out Type? scriptType) || scriptType == null)
         {
             return false;
         }
 
-        description = foundDescription;
-        return true;
+        string normalizedProperty = NormalizeName(propertyName);
+
+        // New, we climb the inheritance tree
+        Type? currentType = scriptType;
+        while (currentType != null && currentType != typeof(GodotObject))
+        {
+            string className = currentType.Name;
+
+            if (_documentation.TryGetValue(className, out Dictionary<string, string>? properties) &&
+                properties.TryGetValue(normalizedProperty, out string? foundDescription) &&
+                foundDescription != null)
+            {
+                description = foundDescription;
+                return true;
+            }
+
+            currentType = currentType.BaseType;
+        }
+
+        return false;
+    }
+    
+    private static bool TryGetScriptType(GodotObject @object, out Type? type)
+    {
+        type = null;
+        Variant scriptVariant = @object.GetScript();
+
+        if (scriptVariant.VariantType != Variant.Type.Object)
+        {
+            return false;
+        }
+
+        Script? script = scriptVariant.AsGodotObject() as Script;
+        string scriptPath = script?.ResourcePath ?? string.Empty;
+
+        if (!scriptPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        
+        string className = Path.GetFileNameWithoutExtension(scriptPath);
+        
+        type = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => {
+                try { return a.GetTypes(); }
+                catch { return Array.Empty<Type>(); }
+            })
+            .FirstOrDefault(t => t.Name == className);
+
+        return type != null;
     }
 
     private static bool TryGetCSharpClassName(GodotObject @object, out string className)
